@@ -1,0 +1,21 @@
+[package]
+name = "echocrypt"
+version = "0.1.0"
+authors = ["nhweston <nhweston1997@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cpal = "0.12.0"
+num-bigint = "0.3.0"
+num-integer = "0.1.43"
+num-traits = "0.2.12"
+
+[profile.release]
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = "abort"
