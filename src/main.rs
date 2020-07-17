@@ -8,7 +8,7 @@ use crate::gen::generate;
 mod gen;
 mod bit_vec;
 
-const ASCII_START: u8 = 48;
+const ASCII_START: u8 = 32;
 const ASCII_END: u8 = 126;
 
 type Result<T> = result::Result<T, String>;
