@@ -38,7 +38,6 @@ impl Generator {
     ) -> Generator {
         let base = cset.len();
         let num_blks = BigUint::from(base).pow(pwd_len as u32).bits() as usize;
-        let bf = Vec::with_capacity(num_blks);
         Generator {
             cset,
             bf: BitVec::new(num_blks),
@@ -51,13 +50,13 @@ impl Generator {
     }
 
     /// Pushes bytes to this generator. Returns passwords generated (if any) by this operation.
-    pub fn push(&mut self, bytes: Vec<u8>) -> Vec<Vec<u8>> {
+    pub fn push(&mut self, bytes: &Vec<u8>) -> Vec<Vec<u8>> {
         let mut res = Vec::new();
         let mut blk = self.blk;
         if bytes.len() < self.blk_left {
             // bytes will not fill the current block
             for byte in bytes {
-                blk ^= byte;
+                blk ^= *byte;
             }
             self.blk = 0;
             self.blk_left -= bytes.len();
@@ -73,9 +72,9 @@ impl Generator {
             }
             // fill as many entire blocks as possible
             self.blk_left = self.blk_len;
-            let num_full_blks = (bytes - fst_left) / self.blk_len;
+            let num_full_blks = (bytes.len() - fst_left) / self.blk_len;
             let mut idx = fst_left;
-            for i_blk in 0..num_full_blks {
+            for _ in 0..num_full_blks {
                 blk = 0;
                 for _ in 0..self.blk_len {
                     blk ^= bytes[idx];
@@ -106,7 +105,7 @@ impl Generator {
             self.bf.push_one();
         }
         if self.bf.len() > self.num_blks {
-            let val = BigUint::from_bytes_le(self.bf.result().as_ref());
+            let val = BigUint::from_bytes_le(self.bf.reset().as_ref());
             Some(self.decode(val))
         }
         else { None }
