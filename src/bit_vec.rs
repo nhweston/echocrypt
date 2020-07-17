@@ -1,17 +1,16 @@
+/// Utilities for efficiently building integers by
 pub struct BitVec {
     init: Vec<u8>,
     last: u8,
-    len: usize,
     crsr: u8
 }
 
 impl BitVec {
 
-    pub fn new() -> BitVec {
+    pub fn new(cap: usize) -> BitVec {
         BitVec {
-            init: Vec::new(),
+            init: Vec::with_capacity(((cap - 1) / 8) + 1),
             last: 0,
-            len: 1,
             crsr: 0
         }
     }
@@ -20,12 +19,11 @@ impl BitVec {
         if self.crsr == 7 {
             self.init.push(self.last);
             self.last = 0;
-            self.len += 1;
             self.crsr = 0;
         }
         else {
-            self.last <<= 1;
             self.crsr += 1;
+            self.last += (1 << self.crsr);
         }
     }
 
@@ -33,13 +31,16 @@ impl BitVec {
         if self.crsr == 7 {
             self.init.push(self.last);
             self.last = 1;
-            self.len += 1;
             self.crsr = 0;
         }
         else {
-            self.last = (self.last << 1) + 1;
             self.crsr += 1;
+            self.last += (1 << self.crsr);
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.init.len() * 8 + (self.crsr as usize)
     }
 
     pub fn result(self) -> Vec<u8> {
