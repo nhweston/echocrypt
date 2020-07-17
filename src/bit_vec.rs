@@ -1,49 +1,55 @@
+use std::cell::RefCell;
+
+/// Utility for efficiently building integers bit by bit.
 pub struct BitVec {
-    init: Vec<u8>,
+    init: RefCell<Vec<u8>>,
     last: u8,
-    len: usize,
-    crsr: u8
+    crsr: u8,
 }
 
 impl BitVec {
 
-    pub fn new() -> BitVec {
+    pub fn new(cap: usize) -> BitVec {
         BitVec {
-            init: Vec::new(),
+            init: RefCell::new(Vec::with_capacity(((cap - 1) / 8) + 1)),
             last: 0,
-            len: 1,
             crsr: 0
         }
     }
 
     pub fn push_zero(&mut self) {
         if self.crsr == 7 {
-            self.init.push(self.last);
+            self.init.borrow_mut().push(self.last);
             self.last = 0;
-            self.len += 1;
             self.crsr = 0;
         }
         else {
-            self.last <<= 1;
             self.crsr += 1;
+            self.last += 1 << self.crsr;
         }
     }
 
     pub fn push_one(&mut self) {
         if self.crsr == 7 {
-            self.init.push(self.last);
+            self.init.borrow_mut().push(self.last);
             self.last = 1;
-            self.len += 1;
             self.crsr = 0;
         }
         else {
-            self.last = (self.last << 1) + 1;
             self.crsr += 1;
+            self.last += 1 << self.crsr;
         }
     }
 
-    pub fn result(self) -> Vec<u8> {
-        let mut vec = self.init;
+    pub fn len(&self) -> usize {
+        self.init.borrow().len() * 8 + (self.crsr as usize)
+    }
+
+    pub fn reset(&mut self) -> Vec<u8> {
+        let cap = self.init.borrow().capacity();
+        self.last = 0;
+        self.crsr = 0;
+        let mut vec = self.init.replace(Vec::with_capacity(cap));
         vec.push(self.last);
         vec
     }
