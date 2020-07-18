@@ -11,8 +11,8 @@ use crate::generator::Generator;
 use crate::params::Params;
 use crate::sample::Sample;
 
-mod generator;
 mod bit_vec;
+mod generator;
 mod params;
 mod sample;
 
