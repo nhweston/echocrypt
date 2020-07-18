@@ -1,7 +1,6 @@
 use std::env;
-use std::fs::File;
-use std::io::Read;
 
+use crate::bit_set::ByteSet;
 use crate::Result;
 
 const ASCII_START: u8 = 32;
@@ -11,7 +10,7 @@ const DEFAULT_PWD_LEN: usize = 24;
 const DEFAULT_NUM_PWDS: usize = 1;
 
 const USAGE_OPTS: &str = r#"
-    -c charset_file     use the charset specified by the given file
+    -e excluded_chars   exclude these characters from the charset
     -l password_length  generate passwords of this length (default 24)
     -n num_passwords    generate this many passwords"#;
 
@@ -26,13 +25,15 @@ impl Params {
     pub fn new(args: Vec<String>) -> Result<Params> {
         let mut iter = args.iter();
         iter.next();
-        let mut cset_path: Option<String> = None;
+        let mut excluded = ByteSet::new();
         let mut pwd_len = DEFAULT_PWD_LEN;
         let mut num_pwds = DEFAULT_NUM_PWDS;
         loop {
             match (iter.next().map(|s| s.as_str()), iter.next()) {
-                (Some("-c"), Some(path)) => {
-                    cset_path = Some(path.clone());
+                (Some("-e"), Some(chars)) => {
+                    for byte in chars.bytes() {
+                        excluded.insert(byte);
+                    }
                 },
                 (Some("-l"), Some(pwd_len_str)) => {
                     pwd_len = pwd_len_str.parse::<usize>().map_err(|e| e.to_string())?;
@@ -48,28 +49,15 @@ impl Params {
                 },
             }
         }
-        let cset = match cset_path {
-            Some(path) => load_file(&path)?,
-            None => {
-                let mut cset = Vec::<u8>::new();
-                for byte in ASCII_START..=ASCII_END {
-                    cset.push(byte);
-                }
-                cset
-            },
-        };
+        let mut cset = Vec::new();
+        for byte in ASCII_START..=ASCII_END {
+            if !excluded.contains(byte) {
+                cset.push(byte);
+            }
+        }
         Ok(Params { cset, pwd_len, num_pwds })
     }
 
-}
-
-fn load_file(path: &String) -> Result<Vec<u8>> {
-    let mut data = Vec::<u8>::new();
-    let mut file = File::open(path).map_err(|e| e.to_string())?;
-    match file.read_to_end(&mut data) {
-        Ok(_) => Ok(data),
-        Err(e) => Err(e.to_string())
-    }
 }
 
 fn usage() -> String {
