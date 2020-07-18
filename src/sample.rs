@@ -4,24 +4,36 @@ use cpal::traits::DeviceTrait;
 use crate::{Result, State};
 
 pub trait Sample where Self: Sized + cpal::Sample {
-    fn convert_to_u8(self) -> u8;
+    fn aggregate_bits(self) -> u8;
 }
 
 impl Sample for i16 {
-    fn convert_to_u8(self) -> u8 {
-        self as u8
+    fn aggregate_bits(self) -> u8 {
+        (self as u16).aggregate_bits()
     }
 }
 
 impl Sample for u16 {
-    fn convert_to_u8(self) -> u8 {
-        self as u8
+    fn aggregate_bits(self) -> u8 {
+        let mut val = self;
+        let mut res = val;
+        for _ in 1..16 {
+            val <<= 1;
+            res ^= val;
+        }
+        res as u8
     }
 }
 
 impl Sample for f32 {
-    fn convert_to_u8(self) -> u8 {
-        ((self + 1.0) * (std::u16::MAX as f32)) as u16 as u8
+    fn aggregate_bits(self) -> u8 {
+        let mut val = u32::from_le_bytes(self.to_ne_bytes());
+        let mut res = val;
+        for _ in 1..32 {
+            val >>= 1;
+            res ^= val;
+        }
+        res as u8
     }
 }
 
@@ -36,7 +48,7 @@ pub fn stream<T: Sample>(
         move |data: &[T], _| {
             let mut vec = Vec::<u8>::new();
             for samp in data {
-                vec.push(samp.convert_to_u8());
+                vec.push(samp.aggregate_bits());
             }
             for pwd in gen.push(&vec) {
                 match String::from_utf8(pwd) {

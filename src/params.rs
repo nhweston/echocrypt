@@ -12,10 +12,10 @@ const DEFAULT_PWD_LEN: usize = 24;
 const DEFAULT_NUM_PWDS: usize = 1;
 
 const USAGE_OPTS: &str = r#"
-    -b block_length     set the number of bits aggregated in each block (default 256)
+    -b block_length     aggregate this many bytes in each block (default 256)
     -c charset_file     use the charset specified by the given file
     -l password_length  generate passwords of this length (default 24)
-    -n num_passwords    generate this number of passwords"#;
+    -n num_passwords    generate this many passwords"#;
 
 pub struct Params {
     pub cset: Vec<u8>,
