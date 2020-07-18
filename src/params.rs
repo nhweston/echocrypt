@@ -7,19 +7,16 @@ use crate::Result;
 const ASCII_START: u8 = 32;
 const ASCII_END: u8 = 126;
 
-const DEFAULT_BLK_LEN: usize = 256;
 const DEFAULT_PWD_LEN: usize = 24;
 const DEFAULT_NUM_PWDS: usize = 1;
 
 const USAGE_OPTS: &str = r#"
-    -b block_length     aggregate this many bytes in each block (default 256)
     -c charset_file     use the charset specified by the given file
     -l password_length  generate passwords of this length (default 24)
     -n num_passwords    generate this many passwords"#;
 
 pub struct Params {
     pub cset: Vec<u8>,
-    pub blk_len: usize,
     pub pwd_len: usize,
     pub num_pwds: usize,
 }
@@ -30,14 +27,10 @@ impl Params {
         let mut iter = args.iter();
         iter.next();
         let mut cset_path: Option<String> = None;
-        let mut blk_len = DEFAULT_BLK_LEN;
         let mut pwd_len = DEFAULT_PWD_LEN;
         let mut num_pwds = DEFAULT_NUM_PWDS;
         loop {
             match (iter.next().map(|s| s.as_str()), iter.next()) {
-                (Some("-b"), Some(blk_len_str)) => {
-                    blk_len = blk_len_str.parse::<usize>().map_err(|e| e.to_string())?;
-                },
                 (Some("-c"), Some(path)) => {
                     cset_path = Some(path.clone());
                 },
@@ -65,7 +58,7 @@ impl Params {
                 cset
             },
         };
-        Ok(Params { cset, blk_len, pwd_len, num_pwds })
+        Ok(Params { cset, pwd_len, num_pwds })
     }
 
 }

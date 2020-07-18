@@ -3,12 +3,13 @@ use std::env;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Mutex;
 
+use cpal::{Device, Stream, StreamConfig};
 use cpal::SampleFormat::*;
 use cpal::traits::*;
 
 use crate::generator::Generator;
 use crate::params::Params;
-use crate::sample::stream;
+use crate::sample::Sample;
 
 mod generator;
 mod bit_vec;
@@ -33,7 +34,7 @@ fn run() -> Result<()> {
     let params = Params::new(env::args().collect())?;
     let (tx, rx) = channel::<Result<()>>();
     let state = State {
-        gen: Generator::new(params.cset, params.blk_len, params.pwd_len),
+        gen: Generator::new(params.cset, params.pwd_len),
         mutex: Mutex::new(tx),
         num_pwds_left: params.num_pwds
     };
@@ -52,4 +53,38 @@ fn run() -> Result<()> {
     rx.recv().map_err(|e| e.to_string())??;
     drop(stream);
     Ok(())
+}
+
+pub fn stream<T: Sample>(
+    dev: Device,
+    conf: StreamConfig,
+    state: State,
+) -> Result<Stream> {
+    let State { mut gen, mut mutex, mut num_pwds_left } = state;
+    dev.build_input_stream(
+        &conf.into(),
+        move |data: &[T], _| {
+            let mut vec = Vec::new();
+            for samp in data {
+                vec.push(samp.aggregate_sample());
+            }
+            for pwd in gen.push(&vec) {
+                match String::from_utf8(pwd) {
+                    Ok(pwd) => println!("{}", pwd),
+                    Err(_) => println!("(invalid UTF string)"),
+                }
+                num_pwds_left -= 1;
+                if num_pwds_left == 0 {
+                    match mutex.get_mut() {
+                        Ok(tx) => if let Err(e) = tx.send(Ok(())) {
+                            eprintln!("{}", e);
+                        },
+                        Err(_) => (),
+                    }
+                    return;
+                }
+            }
+        },
+        |e| eprintln!("{}", e),
+    ).map_err(|e| e.to_string())
 }
