@@ -1,7 +1,8 @@
 use std::env;
 
-use crate::bit_set::ByteSet;
-use crate::Result;
+use anyhow::*;
+
+use crate::byte_set::ByteSet;
 
 const ASCII_START: u8 = 32;
 const ASCII_END: u8 = 126;
@@ -36,13 +37,13 @@ impl Params {
                     }
                 },
                 (Some("-l"), Some(pwd_len_str)) => {
-                    pwd_len = pwd_len_str.parse::<usize>().map_err(|e| e.to_string())?;
+                    pwd_len = pwd_len_str.parse::<usize>()?;
                 },
                 (Some("-n"), Some(num_pwds_str)) => {
-                    num_pwds = num_pwds_str.parse::<usize>().map_err(|e| e.to_string())?;
+                    num_pwds = num_pwds_str.parse::<usize>()?;
                 },
                 (Some(_), _) => {
-                    return Err(usage());
+                    return Err(anyhow!(usage()));
                 },
                 (None, _) => {
                     break;
