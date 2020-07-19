@@ -23,7 +23,6 @@ impl Sample for u16 {
 impl Sample for f32 {
     fn aggregate_sample(self) -> bool {
         let mut val = u32::from_le_bytes(self.to_ne_bytes());
-        println!("{:b}", val);
         let mut res = val;
         for _ in 1..32 {
             val >>= 1;
