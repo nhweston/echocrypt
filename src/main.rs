@@ -17,12 +17,6 @@ mod generator;
 mod params;
 mod sample;
 
-pub struct State {
-    gen: Generator,
-    mutex: Mutex<Sender<Result<()>>>,
-    num_pwds_left: usize,
-}
-
 fn main() {
     if let Err(msg) = run() {
         eprintln!("{}", msg);
@@ -31,19 +25,17 @@ fn main() {
 
 fn run() -> Result<()> {
     let params = Params::new(env::args().collect())?;
-    let (tx, rx) = channel::<Result<()>>();
-    let state = State {
-        gen: Generator::new(params.cset, params.pwd_len),
-        mutex: Mutex::new(tx),
-        num_pwds_left: params.num_pwds
-    };
     let host = cpal::default_host();
     let dev = host.default_input_device().ok_or(anyhow!("No device available"))?;
-    let conf = dev.default_input_config()?;
-    let stream = match conf.sample_format() {
-        I16 => stream::<i16>(dev, conf.into(), state),
-        U16 => stream::<u16>(dev, conf.into(), state),
-        F32 => stream::<f32>(dev, conf.into(), state),
+    let (tx, rx) = channel::<Result<()>>();
+    let (conf, samp_fmt) = {
+        let conf = dev.default_input_config()?;
+        (conf.config(), conf.sample_format())
+    };
+    let stream = match samp_fmt {
+        I16 => stream::<i16>(dev, conf, params, tx),
+        U16 => stream::<u16>(dev, conf, params, tx),
+        F32 => stream::<f32>(dev, conf, params, tx),
     }?;
     stream.play()?;
     rx.recv()??;
@@ -54,9 +46,13 @@ fn run() -> Result<()> {
 pub fn stream<T: Sample>(
     dev: Device,
     conf: StreamConfig,
-    state: State,
+    params: Params,
+    tx: Sender<Result<()>>,
 ) -> Result<Stream> {
-    let State { mut gen, mut mutex, mut num_pwds_left } = state;
+    let Params { cset, pwd_len, num_pwds } = params;
+    let mut gen = Generator::new(cset, pwd_len);
+    let mut mutex = Mutex::new(tx);
+    let mut num_pwds_left = num_pwds;
     let stream = dev.build_input_stream(
         &conf.into(),
         move |data: &[T], _| {
@@ -72,10 +68,14 @@ pub fn stream<T: Sample>(
                 num_pwds_left -= 1;
                 if num_pwds_left == 0 {
                     match mutex.get_mut() {
-                        Ok(tx) => if let Err(e) = tx.send(Ok(())) {
+                        Ok(tx) => {
+                            if let Err(e) = tx.send(Ok(())) {
+                                eprintln!("{}", e);
+                            }
+                        },
+                        Err(e) => {
                             eprintln!("{}", e);
                         },
-                        Err(_) => (),
                     }
                     return;
                 }

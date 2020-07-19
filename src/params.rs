@@ -13,7 +13,7 @@ const DEFAULT_NUM_PWDS: usize = 1;
 const USAGE_OPTS: &str = r#"
     -e excluded_chars   exclude these characters from the charset
     -l password_length  generate passwords of this length (default 24)
-    -n num_passwords    generate this many passwords"#;
+    -n num_passwords    generate this many passwords (default 1)"#;
 
 pub struct Params {
     pub cset: Vec<u8>,
