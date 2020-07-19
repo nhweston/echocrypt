@@ -1,9 +1,9 @@
 use std::env;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::channel;
 use std::sync::Mutex;
 
 use anyhow::*;
-use cpal::{Device, Stream, StreamConfig};
+use cpal::{Device, StreamConfig};
 use cpal::SampleFormat::*;
 use cpal::traits::*;
 
@@ -27,28 +27,23 @@ fn run() -> Result<()> {
     let params = Params::new(env::args().collect())?;
     let host = cpal::default_host();
     let dev = host.default_input_device().ok_or(anyhow!("No device available"))?;
-    let (tx, rx) = channel::<Result<()>>();
     let (conf, samp_fmt) = {
         let conf = dev.default_input_config()?;
         (conf.config(), conf.sample_format())
     };
-    let stream = match samp_fmt {
-        I16 => stream::<i16>(dev, conf, params, tx),
-        U16 => stream::<u16>(dev, conf, params, tx),
-        F32 => stream::<f32>(dev, conf, params, tx),
-    }?;
-    stream.play()?;
-    rx.recv()??;
-    drop(stream);
-    Ok(())
+    match samp_fmt {
+        I16 => start::<i16>(dev, conf, params),
+        U16 => start::<u16>(dev, conf, params),
+        F32 => start::<f32>(dev, conf, params),
+    }
 }
 
-pub fn stream<T: Sample>(
+pub fn start<T: Sample>(
     dev: Device,
     conf: StreamConfig,
     params: Params,
-    tx: Sender<Result<()>>,
-) -> Result<Stream> {
+) -> Result<()> {
+    let (tx, rx) = channel::<Result<()>>();
     let Params { cset, pwd_len, num_pwds } = params;
     let mut gen = Generator::new(cset, pwd_len);
     let mut mutex = Mutex::new(tx);
@@ -83,5 +78,8 @@ pub fn stream<T: Sample>(
         },
         |e| eprintln!("{}", e),
     )?;
-    Ok(stream)
+    stream.play()?;
+    rx.recv()??;
+    drop(stream);
+    Ok(())
 }
