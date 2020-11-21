@@ -49,6 +49,8 @@ pub fn start<T: Sample>(
     let mut mutex = Mutex::new(tx);
     let mut num_pwds_left = num_pwds;
     let mut silent = true;
+    let border = "─".repeat(pwd_len);
+    println!("┌{}┐", border);
     let stream = dev.build_input_stream(
         &conf.into(),
         move |data: &[T], _| {
@@ -75,11 +77,12 @@ pub fn start<T: Sample>(
             }
             for pwd in gen.push(&vec) {
                 match String::from_utf8(pwd) {
-                    Ok(pwd) => println!("{}", pwd),
+                    Ok(pwd) => println!("│{}│", pwd),
                     Err(_) => println!("(invalid UTF string)"),
                 }
                 num_pwds_left -= 1;
                 if num_pwds_left == 0 {
+                    println!("└{}┘", border);
                     match mutex.get_mut() {
                         Ok(tx) => {
                             if let Err(e) = tx.send(Ok(())) {
