@@ -38,9 +38,15 @@ impl Params {
                 },
                 (Some("-l"), Some(pwd_len_str)) => {
                     pwd_len = pwd_len_str.parse::<usize>()?;
+                    if pwd_len == 0 {
+                        return Err(anyhow!("Password length must not be zero"));
+                    }
                 },
                 (Some("-n"), Some(num_pwds_str)) => {
                     num_pwds = num_pwds_str.parse::<usize>()?;
+                    if num_pwds == 0 {
+                        return Err(anyhow!("Number of passwords must not be zero"));
+                    }
                 },
                 (Some(_), _) => {
                     return Err(anyhow!(usage()));
@@ -55,6 +61,9 @@ impl Params {
             if !excluded.contains(byte) {
                 cset.push(byte);
             }
+        }
+        if cset.is_empty() {
+            return Err(anyhow!("Character set must not be empty"));
         }
         Ok(Params { cset, pwd_len, num_pwds })
     }
