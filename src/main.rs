@@ -13,6 +13,7 @@ use crate::sample::Sample;
 
 mod bit_vec;
 mod byte_set;
+mod charset;
 mod generator;
 mod params;
 mod sample;

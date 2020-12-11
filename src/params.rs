@@ -2,16 +2,16 @@ use std::env;
 
 use anyhow::*;
 
-use crate::byte_set::ByteSet;
-
-const ASCII_START: u8 = 32;
-const ASCII_END: u8 = 126;
+use crate::charset::parse_charset;
 
 const DEFAULT_PWD_LEN: usize = 24;
 const DEFAULT_NUM_PWDS: usize = 1;
 
+const TYPEABLE_START: u8 = 32;
+const TYPEABLE_END: u8 = 126;
+
 const USAGE_OPTS: &str = r#"
-    -e excluded_chars   exclude these characters from the charset
+    -c charset          use this character set
     -l password_length  generate passwords of this length (default 24)
     -n num_passwords    generate this many passwords (default 1)"#;
 
@@ -26,15 +26,13 @@ impl Params {
     pub fn new(args: Vec<String>) -> Result<Params> {
         let mut iter = args.iter();
         iter.next();
-        let mut excluded = ByteSet::new();
+        let mut charset = None;
         let mut pwd_len = DEFAULT_PWD_LEN;
         let mut num_pwds = DEFAULT_NUM_PWDS;
         loop {
             match (iter.next().map(|s| s.as_str()), iter.next()) {
-                (Some("-e"), Some(chars)) => {
-                    for byte in chars.bytes() {
-                        excluded.insert(byte);
-                    }
+                (Some("-c"), Some(string)) => {
+                    charset = Some(parse_charset(string)?);
                 },
                 (Some("-l"), Some(pwd_len_str)) => {
                     pwd_len = pwd_len_str.parse::<usize>()?;
@@ -57,14 +55,18 @@ impl Params {
             }
         }
         let mut cset = Vec::new();
-        for byte in ASCII_START..=ASCII_END {
-            if !excluded.contains(byte) {
-                cset.push(byte);
+        match charset {
+            Some(charset) => {
+                for i in &charset {
+                    cset.push(i);
+                }
+            },
+            None => {
+                for i in TYPEABLE_START..=TYPEABLE_END {
+                    cset.push(i);
+                }
             }
-        }
-        if cset.is_empty() {
-            return Err(anyhow!("Character set must not be empty"));
-        }
+        };
         Ok(Params { cset, pwd_len, num_pwds })
     }
 
