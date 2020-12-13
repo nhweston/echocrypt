@@ -53,32 +53,30 @@ pub fn start<T: Sample>(
     println!("┌{}┐", border);
     let stream = dev.build_input_stream(
         &conf.into(),
-        move |data: &[T], _| {
-            let mut vec = Vec::new();
-            for &samp in data {
-                vec.push(samp.aggregate_sample());
-            }
-            for pwd in gen.push(&vec) {
-                match String::from_utf8(pwd) {
-                    Ok(pwd) => println!("│{}│", pwd),
-                    Err(_) => println!("(invalid UTF string)"),
+        move |data: &[T], _| match mutex.get_mut() {
+            Ok(tx) => {
+                let mut vec = Vec::new();
+                for &samp in data {
+                    vec.push(samp.aggregate_sample());
                 }
-                num_pwds_remaining -= 1;
-                if num_pwds_remaining == 0 {
-                    println!("└{}┘", border);
-                    match mutex.get_mut() {
-                        Ok(tx) => {
-                            if let Err(e) = tx.send(Ok(())) {
-                                eprintln!("{}", e);
-                            }
-                        },
-                        Err(e) => {
-                            eprintln!("{}", e);
-                        },
+                for pwd in gen.push(&vec) {
+                    match String::from_utf8(pwd) {
+                        Ok(pwd) => println!("│{}│", pwd),
+                        Err(_) => println!("(invalid UTF string)"),
                     }
-                    return;
+                    num_pwds_remaining -= 1;
+                    if num_pwds_remaining == 0 {
+                        if let Err(e) = tx.send(Ok(())) {
+                            eprintln!("{}", e);
+                        }
+                        println!("└{}┘", border);
+                        return;
+                    }
                 }
-            }
+            },
+            Err(e) => {
+                eprintln!("{}", e);
+            },
         },
         |e| eprintln!("{}", e),
     )?;
