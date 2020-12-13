@@ -27,15 +27,15 @@ fn main() {
 fn run() -> Result<()> {
     let params = Params::new(env::args().collect())?;
     let host = cpal::default_host();
-    let dev = host.default_input_device().ok_or(anyhow!("No device available"))?;
+    let device = host.default_input_device().ok_or(anyhow!("No device available"))?;
     let (conf, samp_fmt) = {
-        let conf = dev.default_input_config()?;
+        let conf = device.default_input_config()?;
         (conf.config(), conf.sample_format())
     };
     match samp_fmt {
-        I16 => start::<i16>(dev, conf, params),
-        U16 => start::<u16>(dev, conf, params),
-        F32 => start::<f32>(dev, conf, params),
+        I16 => start::<i16>(device, conf, params),
+        U16 => start::<u16>(device, conf, params),
+        F32 => start::<f32>(device, conf, params),
     }
 }
 
@@ -45,10 +45,10 @@ pub fn start<T: Sample>(
     params: Params,
 ) -> Result<()> {
     let (tx, rx) = channel::<Result<()>>();
-    let Params { cset, pwd_len, num_pwds } = params;
-    let mut gen = Generator::new(cset, pwd_len);
+    let Params { charset, pwd_len, num_pwds } = params;
+    let mut gen = Generator::new(charset, pwd_len);
     let mut mutex = Mutex::new(tx);
-    let mut num_pwds_left = num_pwds;
+    let mut num_pwds_remaining = num_pwds;
     let border = "─".repeat(pwd_len);
     println!("┌{}┐", border);
     let stream = dev.build_input_stream(
@@ -63,8 +63,8 @@ pub fn start<T: Sample>(
                     Ok(pwd) => println!("│{}│", pwd),
                     Err(_) => println!("(invalid UTF string)"),
                 }
-                num_pwds_left -= 1;
-                if num_pwds_left == 0 {
+                num_pwds_remaining -= 1;
+                if num_pwds_remaining == 0 {
                     println!("└{}┘", border);
                     match mutex.get_mut() {
                         Ok(tx) => {
@@ -84,6 +84,5 @@ pub fn start<T: Sample>(
     )?;
     stream.play()?;
     rx.recv()??;
-    drop(stream);
     Ok(())
 }

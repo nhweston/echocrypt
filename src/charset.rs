@@ -23,12 +23,19 @@ enum State {
     RangeEscape(u8),
 }
 
-pub fn parse_charset(string: &String) -> Result<ByteSet> {
-    fn err_escape_hyphen() -> Result<ByteSet> {
-        return Err(anyhow!("Hyphens must be escaped"));
+pub fn default_charset() -> Vec<u8> {
+    ByteSet::from_raw_parts(TYPEABLE).into()
+}
+
+pub fn parse_charset_spec(string: &String) -> Result<Vec<u8>> {
+    fn err_escape_hyphen() -> Result<Vec<u8>> {
+        Err(anyhow!("Hyphens must be escaped"))
     }
-    fn err_invalid_escape(byte: u8) -> Result<ByteSet> {
-        return Err(anyhow!("Invalid escape sequence: \"\\{}\"", byte as char));
+    fn err_invalid_escape(byte: u8) -> Result<Vec<u8>> {
+        Err(anyhow!("Invalid escape sequence: \"\\{}\"", byte as char))
+    }
+    if string.is_empty() {
+        return Err(anyhow!("Empty charset specification"));
     }
     let bytes = string.as_bytes();
     let invert = bytes[0] == CARET;
@@ -38,7 +45,11 @@ pub fn parse_charset(string: &String) -> Result<ByteSet> {
     }
     let mut state = Start;
     let mut result = ByteSet::new();
+    let typeable = ByteSet::from_raw_parts(TYPEABLE);
     for &byte in bytes {
+        if !typeable.contains(byte) {
+            return Err(anyhow!("Found untypeable or non-ASCII character"));
+        }
         match (state, byte) {
             (Start, HYPHEN) => {
                 return err_escape_hyphen();
@@ -95,24 +106,16 @@ pub fn parse_charset(string: &String) -> Result<ByteSet> {
         }
     }
     match state {
-        Escape | RangeEscape(_) => {
-            return Err(anyhow!("Unterminated escape sequence"));
+        Escape | RangeEscape(_) => Err(anyhow!("Unterminated escape sequence")),
+        Range(_) => Err(anyhow!("Unterminated character range")),
+        _ => {
+            if invert {
+                let tmp = result;
+                result = typeable;
+                result.difference(&tmp);
+            }
+            if result.is_empty() { Err(anyhow!("Character set is empty")) }
+            else { Ok(result.into()) }
         },
-        Range(_) => {
-            return Err(anyhow!("Unterminated character range"));
-        },
-        _ => { },
     }
-    if invert {
-        let mut complement = ByteSet::from_raw_parts(TYPEABLE);
-        complement.difference(&result);
-        return Ok(complement);
-    }
-    if !result.is_subset(&ByteSet::from_raw_parts(TYPEABLE)) {
-        return Err(anyhow!("Detected untypeable character"));
-    }
-    if result.is_empty() {
-        return Err(anyhow!("Character set is empty"));
-    }
-    return Ok(result);
 }

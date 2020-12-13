@@ -1,7 +1,5 @@
-use IterState::*;
-
 pub struct ByteSet {
-    set: [u64; 4]
+    set: [u64; 4],
 }
 
 impl ByteSet {
@@ -62,10 +60,25 @@ impl ByteSet {
     pub fn iter(&self) -> Iter {
         return Iter {
             byte_set: &self.set,
-            state: Start,
+            state: IterState {
+                value: 0,
+                part: self.set[0],
+                byte_idx: 0,
+                bit_idx: 0,
+            },
         };
     }
 
+}
+
+impl From<ByteSet> for Vec<u8> {
+    fn from(byte_set: ByteSet) -> Self {
+        let mut result = Vec::with_capacity(128);
+        for byte in &byte_set {
+            result.push(byte);
+        }
+        result
+    }
 }
 
 impl<'a> IntoIterator for &'a ByteSet {
@@ -81,18 +94,14 @@ impl<'a> IntoIterator for &'a ByteSet {
 
 pub struct Iter<'a> {
     byte_set: &'a [u64; 4],
-    state: IterState
+    state: IterState,
 }
 
-enum IterState {
-    Start,
-    Next {
-        val: u8,
-        part: u64,
-        byte_idx: u8,
-        bit_idx: u8,
-    },
-    End,
+struct IterState {
+    value: u8,
+    part: u64,
+    byte_idx: u8,
+    bit_idx: u8,
 }
 
 impl<'a> Iterator for Iter<'a> {
@@ -100,52 +109,31 @@ impl<'a> Iterator for Iter<'a> {
     type Item = u8;
 
     fn next(&mut self) -> Option<u8> {
-        let (mut val, mut part, mut byte_idx, mut bit_idx) = match &self.state {
-            Start => (0, self.byte_set[0], 0, 0),
-            &Next { val, part, byte_idx, bit_idx } => (val, part, byte_idx, bit_idx),
-            End => {
-                return None;
-            },
-        };
         loop {
-            if (part & 1) == 0 {
-                if bit_idx == 63 {
-                    if byte_idx == 3 {
-                        self.state = End;
-                        return None;
-                    }
-                    bit_idx = 0;
-                    byte_idx += 1;
-                    part = self.byte_set[byte_idx as usize];
-                }
-                else {
-                    bit_idx += 1;
-                    part >>= 1;
-                }
-                val += 1;
-                continue;
-            }
+            let IterState { value, part, byte_idx, bit_idx } = self.state;
             self.state =
                 if bit_idx == 63 {
-                    if byte_idx == 3 { End }
-                    else {
-                        Next {
-                            val: val + 1,
-                            part: self.byte_set[byte_idx as usize + 1],
-                            byte_idx: byte_idx + 1,
-                            bit_idx: 0,
-                        }
+                    if byte_idx == 3 {
+                        return None;
+                    }
+                    IterState {
+                        value: value + 1,
+                        part: self.byte_set[byte_idx as usize + 1],
+                        byte_idx: byte_idx + 1,
+                        bit_idx: 0,
                     }
                 }
                 else {
-                    Next {
-                        val: val + 1,
+                    IterState {
+                        value: value + 1,
                         part: part >> 1,
                         byte_idx,
                         bit_idx: bit_idx + 1,
                     }
                 };
-            return Some(val);
+            if part & 1 != 0 {
+                return Some(value)
+            }
         }
     }
 

@@ -2,13 +2,10 @@ use std::env;
 
 use anyhow::*;
 
-use crate::charset::parse_charset;
+use crate::charset::*;
 
 const DEFAULT_PWD_LEN: usize = 24;
 const DEFAULT_NUM_PWDS: usize = 1;
-
-const TYPEABLE_START: u8 = 32;
-const TYPEABLE_END: u8 = 126;
 
 const USAGE_OPTS: &str = r#"
     -c charset          use this character set
@@ -16,7 +13,7 @@ const USAGE_OPTS: &str = r#"
     -n num_passwords    generate this many passwords (default 1)"#;
 
 pub struct Params {
-    pub cset: Vec<u8>,
+    pub charset: Vec<u8>,
     pub pwd_len: usize,
     pub num_pwds: usize,
 }
@@ -31,8 +28,8 @@ impl Params {
         let mut num_pwds = DEFAULT_NUM_PWDS;
         loop {
             match (iter.next().map(|s| s.as_str()), iter.next()) {
-                (Some("-c"), Some(string)) => {
-                    charset = Some(parse_charset(string)?);
+                (Some("-c"), Some(charset_spec)) => {
+                    charset = Some(parse_charset_spec(charset_spec)?);
                 },
                 (Some("-l"), Some(pwd_len_str)) => {
                     pwd_len = pwd_len_str.parse::<usize>()?;
@@ -54,20 +51,8 @@ impl Params {
                 },
             }
         }
-        let mut cset = Vec::new();
-        match charset {
-            Some(charset) => {
-                for i in &charset {
-                    cset.push(i);
-                }
-            },
-            None => {
-                for i in TYPEABLE_START..=TYPEABLE_END {
-                    cset.push(i);
-                }
-            }
-        };
-        Ok(Params { cset, pwd_len, num_pwds })
+        let charset = charset.unwrap_or_else(|| default_charset());
+        Ok(Params { charset, pwd_len, num_pwds })
     }
 
 }
