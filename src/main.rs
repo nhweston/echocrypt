@@ -49,32 +49,14 @@ pub fn start<T: Sample>(
     let mut gen = Generator::new(cset, pwd_len);
     let mut mutex = Mutex::new(tx);
     let mut num_pwds_left = num_pwds;
-    let mut silent = true;
     let border = "─".repeat(pwd_len);
     println!("┌{}┐", border);
     let stream = dev.build_input_stream(
         &conf.into(),
         move |data: &[T], _| {
             let mut vec = Vec::new();
-            if silent {
-                let mut idx = 0;
-                while idx < data.len() {
-                    let samp = data[idx];
-                    idx += 1;
-                    if !samp.is_silent() {
-                        silent = false;
-                        break;
-                    }
-                }
-                while idx < data.len() {
-                    vec.push(data[idx].aggregate_sample());
-                    idx += 1;
-                }
-            }
-            else {
-                for samp in data {
-                    vec.push(samp.aggregate_sample());
-                }
+            for &samp in data {
+                vec.push(samp.aggregate_sample());
             }
             for pwd in gen.push(&vec) {
                 match String::from_utf8(pwd) {
