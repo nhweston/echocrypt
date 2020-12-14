@@ -45,7 +45,7 @@ impl ByteSet {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn is_empty(&self) -> bool {
@@ -54,19 +54,7 @@ impl ByteSet {
                 return false;
             }
         }
-        return true;
-    }
-
-    pub fn iter(&self) -> Iter {
-        return Iter {
-            byte_set: &self.set,
-            state: IterState {
-                value: 0,
-                part: self.set[0],
-                byte_idx: 0,
-                bit_idx: 0,
-            },
-        };
+        true
     }
 
 }
@@ -87,7 +75,15 @@ impl<'a> IntoIterator for &'a ByteSet {
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Iter<'a> {
-        self.iter()
+        Iter {
+            byte_set: &self.set,
+            state: IterState {
+                value: 0,
+                part: self.set[0],
+                byte_idx: 0,
+                bit_idx: 0,
+            },
+        }
     }
 
 }
@@ -132,7 +128,7 @@ impl<'a> Iterator for Iter<'a> {
                     }
                 };
             if part & 1 != 0 {
-                return Some(value)
+                return Some(value);
             }
         }
     }

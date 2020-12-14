@@ -78,7 +78,9 @@ pub fn start<T: Sample>(
                 eprintln!("{}", e);
             },
         },
-        |e| eprintln!("{}", e),
+        |e| {
+            eprintln!("{}", e)
+        },
     )?;
     stream.play()?;
     rx.recv()??;

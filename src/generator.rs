@@ -59,7 +59,7 @@ impl Generator {
         for _ in 0..self.pwd_len {
             let (quo, rem) = val.div_mod_floor(&base.into());
             val = quo;
-            let code: usize = rem.to_usize().unwrap();
+            let code = rem.to_usize().unwrap();
             let char = self.charset[code];
             result.push(char);
         }
